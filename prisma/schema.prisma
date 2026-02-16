@@ -1,0 +1,306 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// Authentication & User Management
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  // Gamification
+  xp            Int       @default(0)
+  streak        Int       @default(0)
+  lastActive    DateTime?
+  
+  // Relations
+  accounts      Account[]
+  sessions      Session[]
+  progress      UserProgress[]
+  attempts      ExerciseAttempt[]
+  achievements  UserAchievement[]
+  reviewQueue   ReviewQueue[]
+  
+  @@map("users")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+  
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// Curriculum Structure
+model Level {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  order       Int
+  cefrLevel   String   // A1, A2, B1, B2, C1, C2
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  units       Unit[]
+  
+  @@map("levels")
+}
+
+model Unit {
+  id              String   @id @default(cuid())
+  levelId         String
+  name            String
+  description     String?
+  order           Int
+  grammarFocus    String?
+  cefrLevel       String
+  isPublished     Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  level           Level     @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  lessons         Lesson[]
+  vocabularySet   UnitVocabulary[]
+  
+  @@map("units")
+}
+
+model Lesson {
+  id          String   @id @default(cuid())
+  unitId      String
+  name        String
+  description String?
+  order       Int
+  xpReward    Int      @default(10)
+  isPublished Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  unit        Unit       @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  exercises   Exercise[]
+  progress    UserProgress[]
+  
+  @@map("lessons")
+}
+
+// Vocabulary Management
+model Vocabulary {
+  id              String   @id @default(cuid())
+  icelandic       String   @unique
+  english         String
+  partOfSpeech    String   // noun, verb, adjective, etc.
+  frequency       Int?     // Frequency rank for word ordering
+  audioUrl        String?
+  imageUrl        String?
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  units           UnitVocabulary[]
+  exercises       ExerciseVocabulary[]
+  reviewQueue     ReviewQueue[]
+  
+  @@map("vocabulary")
+}
+
+model UnitVocabulary {
+  id           String   @id @default(cuid())
+  unitId       String
+  vocabularyId String
+  
+  unit         Unit       @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  vocabulary   Vocabulary @relation(fields: [vocabularyId], references: [id], onDelete: Cascade)
+  
+  @@unique([unitId, vocabularyId])
+  @@map("unit_vocabulary")
+}
+
+// Exercise System
+model Exercise {
+  id              String   @id @default(cuid())
+  lessonId        String
+  type            String   // multiple_choice, matching, word_order, fill_blank, typing, listening, pronunciation
+  prompt          String
+  correctAnswers  Json     // Array of accepted correct answers
+  options         Json?    // For multiple choice/matching
+  audioUrl        String?
+  imageUrl        String?
+  grammarTag      String?
+  difficulty      Int      @default(1) // 1-5
+  order           Int
+  xpReward        Int      @default(5)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  lesson          Lesson    @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  vocabulary      ExerciseVocabulary[]
+  attempts        ExerciseAttempt[]
+  
+  @@map("exercises")
+}
+
+model ExerciseVocabulary {
+  id           String   @id @default(cuid())
+  exerciseId   String
+  vocabularyId String
+  
+  exercise     Exercise   @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  vocabulary   Vocabulary @relation(fields: [vocabularyId], references: [id], onDelete: Cascade)
+  
+  @@unique([exerciseId, vocabularyId])
+  @@map("exercise_vocabulary")
+}
+
+model ExerciseAttempt {
+  id          String   @id @default(cuid())
+  userId      String
+  exerciseId  String
+  userAnswer  String
+  isCorrect   Boolean
+  timeSpent   Int?     // in seconds
+  createdAt   DateTime @default(now())
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercise    Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+  
+  @@map("exercise_attempts")
+}
+
+// Progress Tracking
+model UserProgress {
+  id          String   @id @default(cuid())
+  userId      String
+  lessonId    String
+  completed   Boolean  @default(false)
+  score       Int?
+  startedAt   DateTime @default(now())
+  completedAt DateTime?
+  
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson      Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, lessonId])
+  @@map("user_progress")
+}
+
+// Spaced Repetition
+model ReviewQueue {
+  id              String   @id @default(cuid())
+  userId          String
+  vocabularyId    String
+  nextReview      DateTime
+  interval        Int      @default(1) // days until next review
+  easeFactor      Float    @default(2.5)
+  repetitions     Int      @default(0)
+  lastReviewed    DateTime?
+  createdAt       DateTime @default(now())
+  
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vocabulary      Vocabulary @relation(fields: [vocabularyId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, vocabularyId])
+  @@map("review_queue")
+}
+
+// Gamification
+model Achievement {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String
+  icon        String?
+  xpReward    Int      @default(0)
+  condition   Json     // Conditions to unlock
+  createdAt   DateTime @default(now())
+  
+  users       UserAchievement[]
+  
+  @@map("achievements")
+}
+
+model UserAchievement {
+  id            String   @id @default(cuid())
+  userId        String
+  achievementId String
+  unlockedAt    DateTime @default(now())
+  
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement   Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, achievementId])
+  @@map("user_achievements")
+}
+
+// Admin Curriculum Import
+model CurriculumImport {
+  id          String   @id @default(cuid())
+  source      String   // icelandic_online, tatoeba, wiktionary, frequency_list
+  type        String   // vocabulary, sentences, morphology
+  status      String   @default("pending") // pending, processing, completed, failed
+  fileUrl     String?
+  data        Json?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  processedAt DateTime?
+  error       String?
+  
+  @@map("curriculum_imports")
+}
+
+model DraftLesson {
+  id          String   @id @default(cuid())
+  unitId      String?
+  name        String
+  description String?
+  exercises   Json     // Draft exercise data
+  status      String   @default("draft") // draft, approved, rejected
+  createdBy   String?  // Admin user reference
+  createdAt   DateTime @default(now())
+  reviewedAt  DateTime?
+  reviewNotes String?
+  
+  @@map("draft_lessons")
+}
