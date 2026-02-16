@@ -2,14 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
 interface RouteContext {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 export async function POST(req: NextRequest, context: RouteContext) {
   try {
-    const draftId = context.params.id
+    const params = await context.params
+    const draftId = params.id
 
     const draft = await prisma.lessonDraft.findUnique({
       where: { id: draftId }

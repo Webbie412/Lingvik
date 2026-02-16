@@ -3,14 +3,15 @@ import { prisma } from '@/lib/prisma'
 import { ExerciseType, LessonStatus } from '@prisma/client'
 
 interface RouteContext {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 export async function POST(req: NextRequest, context: RouteContext) {
   try {
-    const draftId = context.params.id
+    const params = await context.params
+    const draftId = params.id
 
     const draft = await prisma.lessonDraft.findUnique({
       where: { id: draftId }
@@ -51,11 +52,12 @@ export async function POST(req: NextRequest, context: RouteContext) {
     const nextOrder = (lastLesson?.order || 0) + 1
 
     // Create the lesson
+    const generatedContent = draft.generatedContent as { description?: string; exercises?: any[] } | null
     const lesson = await prisma.lesson.create({
       data: {
         unitId: unit.id,
         title: draft.title,
-        description: draft.description || draft.generatedContent?.description,
+        description: draft.description || generatedContent?.description || null,
         order: nextOrder,
         xpReward: 10 + (draft.difficulty * 5),
         status: LessonStatus.PUBLISHED,
@@ -63,8 +65,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
     })
 
     // Create exercises if generated content exists
-    if (draft.generatedContent?.exercises) {
-      const exercises = draft.generatedContent.exercises
+    if (generatedContent?.exercises) {
+      const exercises = generatedContent.exercises
       
       for (let i = 0; i < exercises.length; i++) {
         const ex = exercises[i]

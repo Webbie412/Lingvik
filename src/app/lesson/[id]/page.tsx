@@ -5,9 +5,9 @@ import { prisma } from '@/lib/prisma'
 import ExerciseEngine from '@/components/ExerciseEngine'
 
 interface PageProps {
-  params: {
+  params: Promise<{
     id: string
-  }
+  }>
 }
 
 export default async function LessonPage({ params }: PageProps) {
@@ -17,8 +17,9 @@ export default async function LessonPage({ params }: PageProps) {
     redirect('/auth/signin')
   }
 
+  const resolvedParams = await params
   const lesson = await prisma.lesson.findUnique({
-    where: { id: params.id },
+    where: { id: resolvedParams.id },
     include: {
       exercises: {
         orderBy: { order: 'asc' }
