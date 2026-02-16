@@ -172,7 +172,10 @@ export default function LessonPage() {
       // Initialize next exercise if word_order
       const nextExercise = lesson?.exercises[nextIndex]
       if (nextExercise?.type === 'word_order' && nextExercise.options) {
-        setAvailableWords([...nextExercise.options])
+        const options = Array.isArray(nextExercise.options) 
+          ? nextExercise.options 
+          : []
+        setAvailableWords([...options])
       }
     } else {
       completeLesson()
