@@ -4,6 +4,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import { prisma } from '@/lib/prisma'
 import LearningPath from '@/components/LearningPath'
 import UserStats from '@/components/UserStats'
+import Link from 'next/link'
 
 export default async function LearnPage() {
   const session = await getServerSession(authOptions)
@@ -44,6 +45,12 @@ export default async function LearnPage() {
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold text-blue-600">Lingvik</h1>
           <div className="flex items-center gap-4">
+            <Link href="/review" className="text-purple-600 hover:text-purple-700 font-medium">
+              📚 Review
+            </Link>
+            <Link href="/admin" className="text-gray-600 hover:text-gray-700">
+              ⚙️ Admin
+            </Link>
             <span className="text-gray-700">👤 {session.user.name || session.user.email}</span>
           </div>
         </div>
