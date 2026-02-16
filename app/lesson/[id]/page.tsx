@@ -78,11 +78,25 @@ export default function LessonPage() {
       const res = await fetch(`/api/lessons/${lessonId}`)
       if (!res.ok) throw new Error('Failed to fetch lesson')
       const data = await res.json()
-      setLesson(data.lesson)
+      
+      // Parse JSON fields in exercises
+      const lessonWithParsedExercises = {
+        ...data.lesson,
+        exercises: data.lesson.exercises.map((ex: any) => ({
+          ...ex,
+          correctAnswers: typeof ex.correctAnswers === 'string' ? JSON.parse(ex.correctAnswers) : ex.correctAnswers,
+          options: ex.options && typeof ex.options === 'string' ? JSON.parse(ex.options) : ex.options,
+        }))
+      }
+      
+      setLesson(lessonWithParsedExercises)
       
       // Initialize word order if first exercise is word_order
-      if (data.lesson.exercises[0]?.type === 'word_order' && data.lesson.exercises[0].options) {
-        setAvailableWords([...data.lesson.exercises[0].options])
+      if (lessonWithParsedExercises.exercises[0]?.type === 'word_order' && lessonWithParsedExercises.exercises[0].options) {
+        const options = Array.isArray(lessonWithParsedExercises.exercises[0].options) 
+          ? lessonWithParsedExercises.exercises[0].options 
+          : []
+        setAvailableWords([...options])
       }
     } catch (error) {
       console.error('Error fetching lesson:', error)
